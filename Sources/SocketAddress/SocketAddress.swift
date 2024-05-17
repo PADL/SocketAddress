@@ -16,6 +16,7 @@
 
 #if os(Linux)
 import Glibc
+import CLinuxSockAddr
 #elseif canImport(Darwin)
 import Darwin
 #endif

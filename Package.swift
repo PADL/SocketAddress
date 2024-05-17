@@ -16,6 +16,10 @@ let package = Package(
       name: "SocketAddress",
       targets: ["SocketAddress"]
     ),
+    .library(
+      name: "CLinuxSockAddr",
+      targets: ["CLinuxSockAddr"]
+    ),
   ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-system", from: "1.0.0"),
@@ -28,6 +32,9 @@ let package = Package(
       dependencies: [
         .product(name: "SystemPackage", package: "swift-system"),
       ]
+    ),
+    .systemLibrary(
+      name: "CLinuxSockAddr"
     ),
     .testTarget(
       name: "SocketAddressTests",
