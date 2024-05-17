@@ -190,6 +190,9 @@ Sendable {
     sin_family = family
     self.sin_port = sin_port
     self.sin_addr = sin_addr
+    #if canImport(Darwin)
+    sin_len = UInt8(size)
+    #endif
   }
 
   public var size: socklen_t {
@@ -243,6 +246,9 @@ Sendable {
     sin6_family = family
     self.sin6_port = sin6_port
     self.sin6_addr = sin6_addr
+    #if canImport(Darwin)
+    sin6_len = UInt8(size)
+    #endif
   }
 
   public var size: socklen_t {
@@ -306,7 +312,7 @@ Sendable {
       }
     }
     #if canImport(Darwin)
-    sun.sun_len = UInt8(MemoryLayout<sockaddr_un>.size - capacity + presentationAddress.utf8.count)
+    sun.sun_len = UInt8(Int(size) - capacity + presentationAddress.utf8.count)
     #endif
     self = sun
   }
