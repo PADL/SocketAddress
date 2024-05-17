@@ -15,9 +15,9 @@
 //
 
 #if os(Linux)
-import Glibc
 import CLinuxSockAddr
 import Foundation // for String(format:) on Linux
+import Glibc
 #elseif canImport(Darwin)
 import Darwin
 #endif
@@ -63,7 +63,7 @@ public extension SocketAddress {
   }
 }
 
-extension SocketAddress {
+public extension SocketAddress {
   func asStorage() -> sockaddr_storage {
     var ss = sockaddr_storage()
     withSockAddr {
