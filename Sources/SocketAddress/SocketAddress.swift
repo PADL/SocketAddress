@@ -289,10 +289,11 @@ Sendable {
     self = sockaddr_un()
     var sun = self
     sun.sun_family = family
+    var capacity = 0
 
     try withUnsafeMutablePointer(to: &sun.sun_path) { path in
       let start = path.propertyBasePointer(to: \.0)!
-      let capacity = MemoryLayout.size(ofValue: path.pointee)
+      capacity = MemoryLayout.size(ofValue: path.pointee)
       if capacity <= presentationAddress.utf8.count {
         throw Errno.outOfRange
       }
@@ -304,7 +305,9 @@ Sendable {
         )
       }
     }
-
+    #if canImport(Darwin)
+    sun.sun_len = UInt8(MemoryLayout<sockaddr_un>.size - capacity + presentationAddress.utf8.count)
+    #endif
     self = sun
   }
 
