@@ -17,6 +17,7 @@
 #if os(Linux)
 import Glibc
 import CLinuxSockAddr
+import Foundation // for String(format:) on Linux
 #elseif canImport(Darwin)
 import Darwin
 #endif

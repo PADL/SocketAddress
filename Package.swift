@@ -31,6 +31,7 @@ let package = Package(
       name: "SocketAddress",
       dependencies: [
         .product(name: "SystemPackage", package: "swift-system"),
+        "CLinuxSockAddr",
       ]
     ),
     .systemLibrary(
