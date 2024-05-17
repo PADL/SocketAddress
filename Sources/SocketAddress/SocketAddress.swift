@@ -16,7 +16,6 @@
 
 #if os(Linux)
 import CLinuxSockAddr
-import Foundation // for String(format:) on Linux
 import Glibc
 #elseif canImport(Darwin)
 import Darwin
@@ -384,7 +383,7 @@ Sendable {
         let start = addr.propertyBasePointer(to: \.0)!
         let capacity = MemoryLayout.size(ofValue: addr.pointee)
         return start.withMemoryRebound(to: UInt8.self, capacity: capacity) { dst in
-          UnsafeBufferPointer(start: dst, count: Int(ETH_ALEN)).map { String(format: "%02x", $0) }
+          UnsafeBufferPointer(start: dst, count: Int(ETH_ALEN)).map { String($0, radix: 16) }
             .joined(separator: ":")
         }
       }
