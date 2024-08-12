@@ -378,6 +378,7 @@ Sendable {
         memcpy(UnsafeMutableRawPointer(mutating: dst), bytes, Int(ETH_ALEN))
       }
     }
+    sll.sll_halen = UInt8(ETH_ALEN)
     self = sll
   }
 
