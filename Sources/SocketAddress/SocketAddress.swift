@@ -14,8 +14,10 @@
 // limitations under the License.
 //
 
+#if canImport(Glibc)
 #if os(Linux)
 import CLinuxSockAddr
+#endif
 import Glibc
 #elseif canImport(Darwin)
 import Darwin

@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#if os(Linux)
+#if canImport(Glibc)
 import Glibc
 #elseif canImport(Darwin)
 import Darwin
