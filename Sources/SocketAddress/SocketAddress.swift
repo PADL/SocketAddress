@@ -531,17 +531,6 @@ Sendable {
   }
 }
 
-public extension sockaddr {
-  init(bytes: [UInt8]) throws {
-    guard bytes.count >= MemoryLayout<Self>.size else {
-      throw Errno.outOfRange
-    }
-    var sa = sockaddr()
-    memcpy(&sa, bytes, MemoryLayout<Self>.size)
-    self = sa
-  }
-}
-
 public extension sockaddr_storage {
   init(bytes: [UInt8]) throws {
     let sa = try sockaddr(bytes: bytes)
