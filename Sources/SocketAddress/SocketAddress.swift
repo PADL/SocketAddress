@@ -531,23 +531,13 @@ Sendable {
   }
 }
 
-public extension sockaddr {
-  init(bytes: [UInt8]) throws {
-    guard bytes.count >= MemoryLayout<Self>.size else {
-      throw Errno.outOfRange
-    }
-    var sa = sockaddr()
-    memcpy(&sa, bytes, MemoryLayout<Self>.size)
-    self = sa
-  }
-}
-
 public extension sockaddr_storage {
   init(bytes: [UInt8]) throws {
-    let sa = try sockaddr(bytes: bytes)
+    let family = bytes.withUnsafeBytes { $0.loadUnaligned(as: sockaddr.self).sa_family }
     var ss = Self()
     let bytesRequired: Int
-    switch Int32(sa.sa_family) {
+
+    switch Int32(family) {
     case AF_INET:
       bytesRequired = MemoryLayout<sockaddr_in>.size
     case AF_INET6:
