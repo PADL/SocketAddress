@@ -270,7 +270,7 @@ Sendable {
       var sin6 = self
       var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
       let size = socklen_t(buffer.count)
-      guard let result = inet_ntop(AF_INET, &sin6.sin6_addr, &buffer, size) else {
+      guard let result = inet_ntop(AF_INET6, &sin6.sin6_addr, &buffer, size) else {
         throw Errno.lastError
       }
       let port = UInt16(bigEndian: sin6.sin6_port)
