@@ -187,9 +187,12 @@ Sendable {
     let (address, port) = parseIPv4PresentationAddress(presentationAddress)
     var sin_port = UInt16()
     var sin_addr = in_addr()
-    _ = try Errno.throwingErrno {
+    let result = try Errno.throwingErrno {
       if let port { sin_port = port.bigEndian }
       return inet_pton(AF_INET, address, &sin_addr)
+    }
+    if result != 1 {
+      throw Errno.invalidArgument
     }
     sin_family = family
     self.sin_port = sin_port
@@ -243,9 +246,12 @@ Sendable {
     let (address, port) = try parseIPv6PresentationAddress(presentationAddress)
     var sin6_port = UInt16()
     var sin6_addr = in6_addr()
-    _ = try Errno.throwingErrno {
+    let result = try Errno.throwingErrno {
       if let port { sin6_port = port.bigEndian }
       return inet_pton(AF_INET6, address, &sin6_addr)
+    }
+    if result != 1 {
+      throw Errno.invalidArgument
     }
     sin6_family = family
     self.sin6_port = sin6_port
