@@ -533,6 +533,10 @@ Sendable {
 
 public extension sockaddr_storage {
   init(bytes: [UInt8]) throws {
+    guard bytes.count >= MemoryLayout<sockaddr>.size else {
+      throw Errno.outOfRange
+    }
+
     let family = bytes.withUnsafeBytes { $0.loadUnaligned(as: sockaddr.self).sa_family }
     var ss = Self()
     let bytesRequired: Int
@@ -543,6 +547,7 @@ public extension sockaddr_storage {
     case AF_INET6:
       bytesRequired = MemoryLayout<sockaddr_in6>.size
     case AF_LOCAL:
+      // TODO: just check actual bytes required from sun_path
       bytesRequired = MemoryLayout<sockaddr_un>.size
     #if os(Linux)
     case AF_PACKET:
