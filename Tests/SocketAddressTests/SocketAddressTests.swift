@@ -1,4 +1,5 @@
 @testable import SocketAddress
+import SystemPackage
 import XCTest
 #if os(Linux)
 import CLinuxSockAddr
@@ -166,5 +167,163 @@ final class SocketAddressTests: XCTestCase {
       family: sa_family_t(AF_INET6),
       presentationAddress: "[gggg::1]:80"
     ))
+  }
+
+  func testSockaddrStorageFromIPv4Bytes() throws {
+    let originalSockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "192.168.1.100:8080"
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let storage = try sockaddr_storage(bytes: bytes)
+
+    XCTAssertEqual(storage.family, sa_family_t(AF_INET))
+    XCTAssertEqual(try storage.port, 8080)
+    XCTAssertTrue(try storage.presentationAddress.contains("192.168.1.100"))
+  }
+
+  func testSockaddrStorageFromIPv6Bytes() throws {
+    let originalSockAddr = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[2001:db8::1]:9090"
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let storage = try sockaddr_storage(bytes: bytes)
+
+    XCTAssertEqual(storage.family, sa_family_t(AF_INET6))
+    XCTAssertEqual(try storage.port, 9090)
+  }
+
+  func testSockaddrStorageFromUnixBytes() throws {
+    let path = "/tmp/test"
+    let originalSockAddr = try sockaddr_un(
+      family: sa_family_t(AF_LOCAL),
+      presentationAddress: path
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let storage = try sockaddr_storage(bytes: bytes)
+
+    XCTAssertEqual(storage.family, sa_family_t(AF_LOCAL))
+    XCTAssertEqual(try storage.presentationAddress, path)
+  }
+
+  #if os(Linux)
+  func testSockaddrStorageFromPacketBytes() throws {
+    let macAddress = "de:ad:be:ef:ca:fe"
+    let originalSockAddr = try sockaddr_ll(
+      family: sa_family_t(AF_PACKET),
+      presentationAddress: macAddress
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let storage = try sockaddr_storage(bytes: bytes)
+
+    XCTAssertEqual(storage.family, sa_family_t(AF_PACKET))
+  }
+  #endif
+
+  func testSockaddrStorageRoundTripIPv4() throws {
+    let originalSockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "10.0.0.1:3000"
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let storage = try sockaddr_storage(bytes: bytes)
+    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0) }
+
+    let expectedSize = MemoryLayout<sockaddr_in>.size
+    XCTAssertEqual(bytes.prefix(expectedSize), roundTripBytes.prefix(expectedSize))
+
+    let finalStorage = try sockaddr_storage(bytes: roundTripBytes)
+    XCTAssertEqual(try originalSockAddr.presentationAddress, try finalStorage.presentationAddress)
+    XCTAssertEqual(try originalSockAddr.port, try finalStorage.port)
+  }
+
+  func testSockaddrStorageRoundTripIPv6() throws {
+    let originalSockAddr = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[::1]:5432"
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let storage = try sockaddr_storage(bytes: bytes)
+    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0) }
+
+    let expectedSize = MemoryLayout<sockaddr_in6>.size
+    XCTAssertEqual(bytes.prefix(expectedSize), roundTripBytes.prefix(expectedSize))
+
+    let finalStorage = try sockaddr_storage(bytes: roundTripBytes)
+    XCTAssertEqual(try originalSockAddr.port, try finalStorage.port)
+  }
+
+  func testSockaddrStorageRoundTripUnix() throws {
+    let path = "/tmp/test"
+    let originalSockAddr = try sockaddr_un(
+      family: sa_family_t(AF_LOCAL),
+      presentationAddress: path
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let storage = try sockaddr_storage(bytes: bytes)
+    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0) }
+
+    let expectedSize = MemoryLayout<sockaddr_un>.size
+    XCTAssertEqual(bytes.prefix(expectedSize), roundTripBytes.prefix(expectedSize))
+
+    let finalStorage = try sockaddr_storage(bytes: roundTripBytes)
+    XCTAssertEqual(try originalSockAddr.presentationAddress, try finalStorage.presentationAddress)
+  }
+
+  #if os(Linux)
+  func testSockaddrStorageRoundTripPacket() throws {
+    let macAddress = "01:23:45:67:89:ab"
+    let originalSockAddr = try sockaddr_ll(
+      family: sa_family_t(AF_PACKET),
+      presentationAddress: macAddress
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let storage = try sockaddr_storage(bytes: bytes)
+    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0) }
+
+    let expectedSize = MemoryLayout<sockaddr_ll>.size
+    XCTAssertEqual(bytes.prefix(expectedSize), roundTripBytes.prefix(expectedSize))
+  }
+  #endif
+
+  func testSockaddrStorageFromBytesInvalidFamily() throws {
+    var invalidBytes = [UInt8](repeating: 0, count: 128)
+    invalidBytes[0] = 255
+
+    XCTAssertThrowsError(try sockaddr_storage(bytes: invalidBytes)) { error in
+      XCTAssertEqual(error as? Errno, Errno.addressFamilyNotSupported)
+    }
+  }
+
+  func testSockaddrStorageFromBytesTooShort() throws {
+    var shortBytes = [UInt8](repeating: 0, count: 16)
+    shortBytes[0] = UInt8(AF_INET6)
+
+    XCTAssertThrowsError(try sockaddr_storage(bytes: shortBytes)) { error in
+      XCTAssertEqual(error as? Errno, Errno.outOfRange)
+    }
+  }
+
+  func testAnySocketAddressFromBytes() throws {
+    let originalSockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "203.0.113.42:12345"
+    )
+
+    let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
+    let anyAddr = try AnySocketAddress(bytes: bytes)
+
+    XCTAssertEqual(anyAddr.family, sa_family_t(AF_INET))
+    XCTAssertEqual(try anyAddr.port, 12345)
+    XCTAssertTrue(try anyAddr.presentationAddress.contains("203.0.113.42"))
   }
 }
