@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023-2024 PADL Software Pty Ltd
+// Copyright (c) 2023-2025 PADL Software Pty Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the License);
 // you may not use this file except in compliance with the License.
@@ -76,8 +76,7 @@ public extension SocketAddress {
   }
 }
 
-extension sockaddr: SocketAddress, @unchecked
-Sendable {
+extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
   public static var family: sa_family_t {
     sa_family_t(AF_UNSPEC)
   }
@@ -175,8 +174,7 @@ Sendable {
   }
 }
 
-extension sockaddr_in: SocketAddress, @unchecked
-Sendable {
+extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
   public static var family: sa_family_t {
     sa_family_t(AF_INET)
   }
@@ -234,8 +232,7 @@ Sendable {
   }
 }
 
-extension sockaddr_in6: SocketAddress, @unchecked
-Sendable {
+extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
   public static var family: sa_family_t {
     sa_family_t(AF_INET6)
   }
@@ -293,8 +290,7 @@ Sendable {
   }
 }
 
-extension sockaddr_un: SocketAddress, @unchecked
-Sendable {
+extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
   public static var family: sa_family_t {
     sa_family_t(AF_LOCAL)
   }
@@ -361,8 +357,7 @@ Sendable {
 }
 
 #if os(Linux)
-extension sockaddr_ll: SocketAddress, @unchecked
-Sendable {
+extension sockaddr_ll: SocketAddress, @retroactive @unchecked Sendable {
   public static var family: sa_family_t {
     sa_family_t(AF_PACKET)
   }
@@ -425,7 +420,7 @@ Sendable {
   }
 }
 
-extension sockaddr_nl: SocketAddress, @unchecked Sendable {
+extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
   public static var family: sa_family_t {
     sa_family_t(AF_NETLINK)
   }
@@ -470,8 +465,7 @@ extension sockaddr_nl: SocketAddress, @unchecked Sendable {
 }
 #endif
 
-extension sockaddr_storage: SocketAddress, @unchecked
-Sendable {
+extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
   public static var family: sa_family_t {
     sa_family_t(AF_UNSPEC)
   }
@@ -547,7 +541,6 @@ public extension sockaddr_storage {
     case AF_INET6:
       bytesRequired = MemoryLayout<sockaddr_in6>.size
     case AF_LOCAL:
-      // TODO: just check actual bytes required from sun_path
       bytesRequired = MemoryLayout<sockaddr_un>.size
     #if os(Linux)
     case AF_PACKET:
