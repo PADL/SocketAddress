@@ -309,7 +309,11 @@ final class SocketAddressTests: XCTestCase {
     shortBytes[0] = UInt8(AF_INET6)
 
     XCTAssertThrowsError(try sockaddr_storage(bytes: shortBytes)) { error in
+#if canImport(Darwin)
+      XCTAssertEqual(error as? Errno, Errno.addressFamilyNotSupported)
+#else
       XCTAssertEqual(error as? Errno, Errno.outOfRange)
+#endif
     }
   }
 
