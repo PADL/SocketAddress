@@ -197,7 +197,7 @@ final class SocketAddressTests: XCTestCase {
   }
 
   func testSockaddrStorageFromUnixBytes() throws {
-    let path = "/tmp/test"
+    let path = "/tmp/test/a/long/path"
     let originalSockAddr = try sockaddr_un(
       family: sa_family_t(AF_LOCAL),
       presentationAddress: path
@@ -309,11 +309,11 @@ final class SocketAddressTests: XCTestCase {
     shortBytes[0] = UInt8(AF_INET6)
 
     XCTAssertThrowsError(try sockaddr_storage(bytes: shortBytes)) { error in
-#if canImport(Darwin)
+      #if canImport(Darwin)
       XCTAssertEqual(error as? Errno, Errno.addressFamilyNotSupported)
-#else
+      #else
       XCTAssertEqual(error as? Errno, Errno.outOfRange)
-#endif
+      #endif
     }
   }
 

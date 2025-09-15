@@ -113,57 +113,13 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
 
   public var presentationAddress: String {
     get throws {
-      let storage = _storage
-
-      return try withUnsafePointer(to: storage) {
-        switch Int32(sa_family) {
-        case AF_INET:
-          try $0.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
-            try $0.pointee.presentationAddress
-          }
-        case AF_INET6:
-          try $0.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) {
-            try $0.pointee.presentationAddress
-          }
-        case AF_LOCAL:
-          try $0.withMemoryRebound(to: sockaddr_un.self, capacity: 1) {
-            try $0.pointee.presentationAddress
-          }
-        #if os(Linux)
-        case AF_PACKET:
-          try $0.withMemoryRebound(to: sockaddr_ll.self, capacity: 1) {
-            try $0.pointee.presentationAddress
-          }
-        case AF_NETLINK:
-          try $0.withMemoryRebound(to: sockaddr_nl.self, capacity: 1) {
-            try $0.pointee.presentationAddress
-          }
-        #endif
-        default:
-          throw Errno.addressFamilyNotSupported
-        }
-      }
+      try _storage.presentationAddress
     }
   }
 
   public var port: UInt16 {
     get throws {
-      let storage = _storage
-
-      return try withUnsafePointer(to: storage) {
-        switch Int32(sa_family) {
-        case AF_INET:
-          try $0.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
-            try $0.pointee.port
-          }
-        case AF_INET6:
-          try $0.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) {
-            try $0.pointee.port
-          }
-        default:
-          throw Errno.addressFamilyNotSupported
-        }
-      }
+      try _storage.port
     }
   }
 
@@ -506,16 +462,62 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
 
   public var presentationAddress: String {
     get throws {
-      try withSockAddr { sa in
-        try sa.pointee.presentationAddress
+      switch Int32(ss_family) {
+      case AF_INET:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
+            try $0.pointee.presentationAddress
+          }
+        }
+      case AF_INET6:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) {
+            try $0.pointee.presentationAddress
+          }
+        }
+      case AF_LOCAL:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_un.self, capacity: 1) {
+            try $0.pointee.presentationAddress
+          }
+        }
+      #if os(Linux)
+      case AF_PACKET:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_ll.self, capacity: 1) {
+            try $0.pointee.presentationAddress
+          }
+        }
+      case AF_NETLINK:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_nl.self, capacity: 1) {
+            try $0.pointee.presentationAddress
+          }
+        }
+      #endif
+      default:
+        throw Errno.addressFamilyNotSupported
       }
     }
   }
 
   public var port: UInt16 {
     get throws {
-      try withSockAddr { sa in
-        try sa.pointee.port
+      switch Int32(ss_family) {
+      case AF_INET:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
+            try $0.pointee.port
+          }
+        }
+      case AF_INET6:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) {
+            try $0.pointee.port
+          }
+        }
+      default:
+        throw Errno.addressFamilyNotSupported
       }
     }
   }
