@@ -317,8 +317,12 @@ extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
         )
       }
     }
-    #if canImport(Darwin)
-    sun.sun_len = UInt8(Int(size) - capacity + presentationAddress.utf8.count)
+    #if os(FreeBSD) || canImport(Darwin)
+    sun
+      .sun_len = UInt8(
+        MemoryLayout<sockaddr_un>.offset(of: \.sun_path)! + presentationAddress.utf8
+          .count + 1
+      )
     #endif
     self = sun
   }
