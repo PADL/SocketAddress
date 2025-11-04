@@ -165,11 +165,14 @@ extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
       var sin = self
       var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
       let size = socklen_t(buffer.count)
-      guard let result = inet_ntop(AF_INET, &sin.sin_addr, &buffer, size) else {
-        throw Errno.lastError
+      return try buffer.withUnsafeMutableBufferPointer { buf in
+        guard let base = buf.baseAddress else { throw Errno.lastError }
+        guard inet_ntop(AF_INET, &sin.sin_addr, base, size) != nil else {
+          throw Errno.lastError
+        }
+        let port = UInt16(bigEndian: sin.sin_port)
+        return "\(String(cString: base)):\(port)"
       }
-      let port = UInt16(bigEndian: sin.sin_port)
-      return "\(String(cString: result)):\(port)"
     }
   }
 
@@ -223,11 +226,14 @@ extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
       var sin6 = self
       var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
       let size = socklen_t(buffer.count)
-      guard let result = inet_ntop(AF_INET6, &sin6.sin6_addr, &buffer, size) else {
-        throw Errno.lastError
+      return try buffer.withUnsafeMutableBufferPointer { buf in
+        guard let base = buf.baseAddress else { throw Errno.lastError }
+        guard inet_ntop(AF_INET6, &sin6.sin6_addr, base, size) != nil else {
+          throw Errno.lastError
+        }
+        let port = UInt16(bigEndian: sin6.sin6_port)
+        return "[\(String(cString: base))]:\(port)"
       }
-      let port = UInt16(bigEndian: sin6.sin6_port)
-      return "[\(String(cString: result))]:\(port)"
     }
   }
 
