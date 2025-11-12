@@ -396,7 +396,7 @@ extension sockaddr_ll: SocketAddress, @retroactive @unchecked Sendable {
 
   public var presentationAddressNoPort: String {
     get throws {
-      presentationAddress
+      try presentationAddress
     }
   }
 
@@ -446,7 +446,7 @@ extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
 
   public var presentationAddressNoPort: String {
     get throws {
-      presentationAddress
+      try presentationAddress
     }
   }
 
