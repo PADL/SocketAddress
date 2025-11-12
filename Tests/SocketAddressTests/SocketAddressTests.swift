@@ -351,4 +351,128 @@ final class SocketAddressTests: XCTestCase {
     XCTAssertEqual(try anyAddr.port, 12345)
     XCTAssertTrue(try anyAddr.presentationAddress.contains("203.0.113.42"))
   }
+
+  // MARK: - presentationAddressNoPort Tests
+
+  func testIPv4PresentationAddressNoPortWithPort() throws {
+    let sockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "192.168.1.1:8080"
+    )
+    let addressNoPort = try sockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "192.168.1.1")
+  }
+
+  func testIPv4PresentationAddressNoPortWithoutPort() throws {
+    let sockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "10.0.0.1"
+    )
+    let addressNoPort = try sockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "10.0.0.1")
+  }
+
+  func testIPv6PresentationAddressNoPortWithPort() throws {
+    let sockAddr = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[2001:db8::1]:8080"
+    )
+    let addressNoPort = try sockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "2001:db8::1")
+  }
+
+  func testIPv6PresentationAddressNoPortWithoutPortBracketed() throws {
+    let sockAddr = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[::1]"
+    )
+    let addressNoPort = try sockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "::1")
+  }
+
+  func testIPv6PresentationAddressNoPortBareAddress() throws {
+    let sockAddr = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "2001:db8:85a3::8a2e:370:7334"
+    )
+    let addressNoPort = try sockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "2001:db8:85a3::8a2e:370:7334")
+  }
+
+  func testUnixPresentationAddressNoPort() throws {
+    let path = "/tmp/test.sock"
+    let sockAddr = try sockaddr_un(family: sa_family_t(AF_LOCAL), presentationAddress: path)
+    let addressNoPort = try sockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, path)
+  }
+
+  #if os(Linux)
+  func testPacketPresentationAddressNoPort() throws {
+    let macAddress = "aa:bb:cc:dd:ee:ff"
+    let sockAddr = try sockaddr_ll(family: sa_family_t(AF_PACKET), presentationAddress: macAddress)
+    let addressNoPort = try sockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, macAddress)
+  }
+
+  func testNetlinkPresentationAddressNoPort() throws {
+    let pid = "1234"
+    let sockAddr = try sockaddr_nl(family: sa_family_t(AF_NETLINK), presentationAddress: pid)
+    let addressNoPort = try sockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, pid)
+  }
+  #endif
+
+  func testSockaddrStoragePresentationAddressNoPortIPv4() throws {
+    let storage = try sockaddr_storage(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "203.0.113.1:9999"
+    )
+    let addressNoPort = try storage.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "203.0.113.1")
+  }
+
+  func testSockaddrStoragePresentationAddressNoPortIPv6() throws {
+    let storage = try sockaddr_storage(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[fe80::1]:5432"
+    )
+    let addressNoPort = try storage.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "fe80::1")
+  }
+
+  func testSockaddrStoragePresentationAddressNoPortUnix() throws {
+    let path = "/var/run/daemon.socket"
+    let storage = try sockaddr_storage(family: sa_family_t(AF_LOCAL), presentationAddress: path)
+    let addressNoPort = try storage.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, path)
+  }
+
+  func testAnySocketAddressPresentationAddressNoPortIPv4() throws {
+    let anyAddr = try AnySocketAddress(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "198.51.100.42:8443"
+    )
+    let addressNoPort = try anyAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "198.51.100.42")
+  }
+
+  func testAnySocketAddressPresentationAddressNoPortIPv6() throws {
+    let anyAddr = try AnySocketAddress(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[2001:db8:85a3::8a2e:370:7334]:8080"
+    )
+    let addressNoPort = try anyAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "2001:db8:85a3::8a2e:370:7334")
+  }
+
+  func testGenericSocketAddressPresentationAddressNoPort() throws {
+    let sockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "127.0.0.1:3000"
+    )
+
+    let genericSockAddr: sockaddr = sockAddr.withSockAddr { $0.pointee }
+    let addressNoPort = try genericSockAddr.presentationAddressNoPort
+    XCTAssertEqual(addressNoPort, "127.0.0.1")
+  }
 }

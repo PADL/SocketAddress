@@ -56,7 +56,10 @@ public protocol SocketAddress: Sendable {
 
   init(family: sa_family_t, presentationAddress: String) throws
   func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>) throws -> T) rethrows -> T
+
   var presentationAddress: String { get throws }
+  var presentationAddressNoPort: String { get throws }
+
   var port: UInt16 { get throws }
   var size: socklen_t { get }
 }
@@ -118,6 +121,12 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  public var presentationAddressNoPort: String {
+    get throws {
+      try _storage.presentationAddressNoPort
+    }
+  }
+
   public var port: UInt16 {
     get throws {
       try _storage.port
@@ -163,6 +172,12 @@ extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
 
   public var presentationAddress: String {
     get throws {
+      try "\(presentationAddressNoPort):\(UInt16(bigEndian: sin_port))"
+    }
+  }
+
+  public var presentationAddressNoPort: String {
+    get throws {
       var sin = self
       var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
       let size = socklen_t(buffer.count)
@@ -171,8 +186,7 @@ extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
         guard inet_ntop(AF_INET, &sin.sin_addr, base, size) != nil else {
           throw Errno.lastError
         }
-        let port = UInt16(bigEndian: sin.sin_port)
-        return "\(String(cString: base)):\(port)"
+        return String(cString: base)
       }
     }
   }
@@ -224,6 +238,12 @@ extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
 
   public var presentationAddress: String {
     get throws {
+      try "[\(presentationAddressNoPort)]:\(UInt16(bigEndian: sin6_port))"
+    }
+  }
+
+  public var presentationAddressNoPort: String {
+    get throws {
       var sin6 = self
       var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
       let size = socklen_t(buffer.count)
@@ -232,8 +252,7 @@ extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
         guard inet_ntop(AF_INET6, &sin6.sin6_addr, base, size) != nil else {
           throw Errno.lastError
         }
-        let port = UInt16(bigEndian: sin6.sin6_port)
-        return "[\(String(cString: base))]:\(port)"
+        return String(cString: base)
       }
     }
   }
@@ -308,6 +327,12 @@ extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  public var presentationAddressNoPort: String {
+    get throws {
+      try presentationAddress
+    }
+  }
+
   public var port: UInt16 {
     get throws {
       throw Errno.addressFamilyNotSupported
@@ -372,6 +397,12 @@ extension sockaddr_ll: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  public var presentationAddressNoPort: String {
+    get throws {
+      presentationAddress
+    }
+  }
+
   public var port: UInt16 {
     get throws {
       throw Errno.addressFamilyNotSupported
@@ -413,6 +444,12 @@ extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
   public var presentationAddress: String {
     get throws {
       String(describing: nl_pid)
+    }
+  }
+
+  public var presentationAddressNoPort: String {
+    get throws {
+      presentationAddress
     }
   }
 
@@ -499,6 +536,47 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
         return try withUnsafePointer(to: self) { ptr in
           try ptr.withMemoryRebound(to: sockaddr_nl.self, capacity: 1) {
             try $0.pointee.presentationAddress
+          }
+        }
+      #endif
+      default:
+        throw Errno.addressFamilyNotSupported
+      }
+    }
+  }
+
+  public var presentationAddressNoPort: String {
+    get throws {
+      switch Int32(ss_family) {
+      case AF_INET:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
+            try $0.pointee.presentationAddressNoPort
+          }
+        }
+      case AF_INET6:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) {
+            try $0.pointee.presentationAddressNoPort
+          }
+        }
+      case AF_LOCAL:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_un.self, capacity: 1) {
+            try $0.pointee.presentationAddressNoPort
+          }
+        }
+      #if os(Linux)
+      case AF_PACKET:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_ll.self, capacity: 1) {
+            try $0.pointee.presentationAddressNoPort
+          }
+        }
+      case AF_NETLINK:
+        return try withUnsafePointer(to: self) { ptr in
+          try ptr.withMemoryRebound(to: sockaddr_nl.self, capacity: 1) {
+            try $0.pointee.presentationAddressNoPort
           }
         }
       #endif
@@ -610,6 +688,12 @@ extension AnySocketAddress: SocketAddress {
   public var presentationAddress: String {
     get throws {
       try storage.presentationAddress
+    }
+  }
+
+  public var presentationAddressNoPort: String {
+    get throws {
+      try storage.presentationAddressNoPort
     }
   }
 
