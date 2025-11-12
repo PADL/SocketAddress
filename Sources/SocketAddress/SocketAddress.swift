@@ -39,15 +39,16 @@ private func parseIPv4PresentationAddress(_ presentationAddress: String) -> (Str
 public func parseIPv6PresentationAddress(_ presentationAddress: String) throws
   -> (String, UInt16?)
 {
-  let ipv6Regex: Regex = #/\[([0-9a-fA-F:]+)\](:(\d+))?/#
-  let port: UInt16?
-  let addressPort = presentationAddress.firstMatch(of: ipv6Regex)
+  // Try bracketed format first: [address]:port or [address]
+  let bracketedRegex: Regex = #/\[([0-9a-fA-F:]+)\](:(\d+))?/#
+  if let match = presentationAddress.firstMatch(of: bracketedRegex) {
+    let address = String(match.1)
+    let port: UInt16? = match.3.map { UInt16($0) } ?? nil
+    return (address, port)
+  }
 
-  guard let address = addressPort?.1 else { throw Errno(rawValue: EINVAL) }
-  if let portString = addressPort?.3 { port = UInt16(portString) }
-  else { port = nil }
-
-  return (String(address), port)
+  // Assume bare IPv6 address (let inet_pton() validate it)
+  return (presentationAddress, nil)
 }
 
 public protocol SocketAddress: Sendable {

@@ -34,6 +34,13 @@ final class SocketAddressTests: XCTestCase {
     XCTAssertEqual(try sockAddr.port, 0)
   }
 
+  func testIPv6PresentationAddressInitializerBareAddress() throws {
+    let address = "2001:db8::1"
+    let sockAddr = try sockaddr_in6(family: sa_family_t(AF_INET6), presentationAddress: address)
+    XCTAssertEqual(sockAddr.sin6_family, sa_family_t(AF_INET6))
+    XCTAssertEqual(try sockAddr.port, 0)
+  }
+
   func testUnixPresentationAddressInitializer() throws {
     let path = "/tmp/test.sock"
     let sockAddr = try sockaddr_un(family: sa_family_t(AF_LOCAL), presentationAddress: path)
@@ -45,6 +52,20 @@ final class SocketAddressTests: XCTestCase {
     let sockAddr = try AnySocketAddress(family: sa_family_t(AF_INET), presentationAddress: address)
     XCTAssertEqual(sockAddr.family, sa_family_t(AF_INET))
     XCTAssertEqual(try sockAddr.port, 3000)
+  }
+
+  func testAnySocketAddressInitializerIPv6WithPort() throws {
+    let address = "[::1]:8080"
+    let sockAddr = try AnySocketAddress(family: sa_family_t(AF_INET6), presentationAddress: address)
+    XCTAssertEqual(sockAddr.family, sa_family_t(AF_INET6))
+    XCTAssertEqual(try sockAddr.port, 8080)
+  }
+
+  func testAnySocketAddressInitializerIPv6BareAddress() throws {
+    let address = "2001:db8::1"
+    let sockAddr = try AnySocketAddress(family: sa_family_t(AF_INET6), presentationAddress: address)
+    XCTAssertEqual(sockAddr.family, sa_family_t(AF_INET6))
+    XCTAssertEqual(try sockAddr.port, 0)
   }
 
   func testIPv4PresentationAddressProperty() throws {
