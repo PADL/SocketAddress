@@ -475,4 +475,13 @@ final class SocketAddressTests: XCTestCase {
     let addressNoPort = try genericSockAddr.presentationAddressNoPort
     XCTAssertEqual(addressNoPort, "127.0.0.1")
   }
+
+  func testUnixPresentationAddressLongPath() throws {
+    // Test with a path that fills most of the sun_path buffer to verify
+    // the capacity calculation is using the sun_path size, not pointer size
+    let longPath = "/tmp/" + String(repeating: "x", count: 90)
+    let sockAddr = try sockaddr_un(family: sa_family_t(AF_LOCAL), presentationAddress: longPath)
+    let recoveredPath = try sockAddr.presentationAddress
+    XCTAssertEqual(recoveredPath, longPath)
+  }
 }

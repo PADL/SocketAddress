@@ -312,10 +312,10 @@ extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
 
   public var presentationAddress: String {
     get throws {
+      let capacity = MemoryLayout.size(ofValue: sun_path)
       var sun = self
       return withUnsafeMutablePointer(to: &sun.sun_path) { path in
         let start = path.propertyBasePointer(to: \.0)!
-        let capacity = MemoryLayout.size(ofValue: path)
         return start
           .withMemoryRebound(to: CChar.self, capacity: capacity) { dst in
             String(cString: dst)
