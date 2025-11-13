@@ -109,10 +109,7 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
   }
 
   private var _storage: sockaddr_storage {
-    var storage = sockaddr_storage()
-    let size = Int(size)
-    withUnsafePointer(to: self) { _ = memcpy(&storage, $0, size) }
-    return storage
+    return asStorage()
   }
 
   public var presentationAddress: String {
