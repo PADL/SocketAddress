@@ -484,4 +484,93 @@ final class SocketAddressTests: XCTestCase {
     let recoveredPath = try sockAddr.presentationAddress
     XCTAssertEqual(recoveredPath, longPath)
   }
+
+  // MARK: - withMutableSockAddr Tests
+
+  func testWithMutableSockAddrIPv4() throws {
+    var sockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "192.168.1.1:8080"
+    )
+
+    // Test reading via mutable pointer
+    let family = try sockAddr.withMutableSockAddr { sa in
+      sa.pointee.sa_family
+    }
+    XCTAssertEqual(family, sa_family_t(AF_INET))
+
+    // Test mutation
+    try sockAddr.withMutableSockAddr { sa in
+      sa.pointee.sa_family = sa_family_t(AF_INET)
+    }
+    XCTAssertEqual(sockAddr.sin_family, sa_family_t(AF_INET))
+  }
+
+  func testWithMutableSockAddrIPv6() throws {
+    var sockAddr = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[::1]:8080"
+    )
+
+    let family = try sockAddr.withMutableSockAddr { sa in
+      sa.pointee.sa_family
+    }
+    XCTAssertEqual(family, sa_family_t(AF_INET6))
+  }
+
+  func testWithMutableSockAddrUnix() throws {
+    var sockAddr = try sockaddr_un(family: sa_family_t(AF_LOCAL), presentationAddress: "/tmp/test")
+
+    let family = try sockAddr.withMutableSockAddr { sa in
+      sa.pointee.sa_family
+    }
+    XCTAssertEqual(family, sa_family_t(AF_LOCAL))
+  }
+
+  func testWithMutableSockAddrStorage() throws {
+    var storage = try sockaddr_storage(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "10.0.0.1:3000"
+    )
+
+    let family = try storage.withMutableSockAddr { sa in
+      sa.pointee.sa_family
+    }
+    XCTAssertEqual(family, sa_family_t(AF_INET))
+  }
+
+  func testWithMutableSockAddrAnySocketAddress() throws {
+    var anyAddr = try AnySocketAddress(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "127.0.0.1:5000"
+    )
+
+    let family = try anyAddr.withMutableSockAddr { sa in
+      sa.pointee.sa_family
+    }
+    XCTAssertEqual(family, sa_family_t(AF_INET))
+  }
+
+  #if os(Linux)
+  func testWithMutableSockAddrPacket() throws {
+    var sockAddr = try sockaddr_ll(
+      family: sa_family_t(AF_PACKET),
+      presentationAddress: "aa:bb:cc:dd:ee:ff"
+    )
+
+    let family = try sockAddr.withMutableSockAddr { sa in
+      sa.pointee.sa_family
+    }
+    XCTAssertEqual(family, sa_family_t(AF_PACKET))
+  }
+
+  func testWithMutableSockAddrNetlink() throws {
+    var sockAddr = try sockaddr_nl(family: sa_family_t(AF_NETLINK), presentationAddress: "1234")
+
+    let family = try sockAddr.withMutableSockAddr { sa in
+      sa.pointee.sa_family
+    }
+    XCTAssertEqual(family, sa_family_t(AF_NETLINK))
+  }
+  #endif
 }

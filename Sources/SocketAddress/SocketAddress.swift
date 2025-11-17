@@ -56,6 +56,9 @@ public protocol SocketAddress: Sendable {
 
   init(family: sa_family_t, presentationAddress: String) throws
   func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>) throws -> T) rethrows -> T
+  mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T
 
   var presentationAddress: String { get throws }
   var presentationAddressNoPort: String { get throws }
@@ -109,7 +112,7 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
   }
 
   private var _storage: sockaddr_storage {
-    return asStorage()
+    asStorage()
   }
 
   public var presentationAddress: String {
@@ -132,6 +135,14 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
 
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>) throws -> T) rethrows -> T {
     try withUnsafePointer(to: self) { sa in
+      try body(sa)
+    }
+  }
+
+  public mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T {
+    try withUnsafeMutablePointer(to: &self) { sa in
       try body(sa)
     }
   }
@@ -201,6 +212,16 @@ extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
       }
     }
   }
+
+  public mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T {
+    try withUnsafeMutablePointer(to: &self) { sin in
+      try sin.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+        try body(sa)
+      }
+    }
+  }
 }
 
 extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
@@ -262,6 +283,16 @@ extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
 
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>) throws -> T) rethrows -> T {
     try withUnsafePointer(to: self) { sin6 in
+      try sin6.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+        try body(sa)
+      }
+    }
+  }
+
+  public mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T {
+    try withUnsafeMutablePointer(to: &self) { sin6 in
       try sin6.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
         try body(sa)
       }
@@ -343,6 +374,16 @@ extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
       }
     }
   }
+
+  public mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T {
+    try withUnsafeMutablePointer(to: &self) { sun in
+      try sun.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+        try body(sa)
+      }
+    }
+  }
 }
 
 #if os(Linux)
@@ -413,6 +454,16 @@ extension sockaddr_ll: SocketAddress, @retroactive @unchecked Sendable {
       }
     }
   }
+
+  public mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T {
+    try withUnsafeMutablePointer(to: &self) { sun in
+      try sun.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+        try body(sa)
+      }
+    }
+  }
 }
 
 extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
@@ -458,6 +509,16 @@ extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
 
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>) throws -> T) rethrows -> T {
     try withUnsafePointer(to: self) { sun in
+      try sun.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+        try body(sa)
+      }
+    }
+  }
+
+  public mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T {
+    try withUnsafeMutablePointer(to: &self) { sun in
       try sun.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
         try body(sa)
       }
@@ -611,6 +672,16 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
       }
     }
   }
+
+  public mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T {
+    try withUnsafeMutablePointer(to: &self) { ss in
+      try ss.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+        try body(sa)
+      }
+    }
+  }
 }
 
 public extension sockaddr_storage {
@@ -680,6 +751,12 @@ extension AnySocketAddress: SocketAddress {
 
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>) throws -> T) rethrows -> T {
     try storage.withSockAddr(body)
+  }
+
+  public mutating func withMutableSockAddr<T>(_ body: (_ sa: UnsafeMutablePointer<sockaddr>) throws
+    -> T
+  ) rethrows -> T {
+    try storage.withMutableSockAddr(body)
   }
 
   public var presentationAddress: String {
