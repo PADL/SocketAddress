@@ -471,7 +471,7 @@ final class SocketAddressTests: XCTestCase {
       presentationAddress: "127.0.0.1:3000"
     )
 
-    let genericSockAddr: sockaddr = sockAddr.withSockAddr { $0.pointee }
+    let genericSockAddr: sockaddr = sockAddr.withSockAddr { sa, _ in sa.pointee }
     let addressNoPort = try genericSockAddr.presentationAddressNoPort
     XCTAssertEqual(addressNoPort, "127.0.0.1")
   }
@@ -493,14 +493,15 @@ final class SocketAddressTests: XCTestCase {
       presentationAddress: "192.168.1.1:8080"
     )
 
-    // Test reading via mutable pointer
-    let family = try sockAddr.withMutableSockAddr { sa in
-      sa.pointee.sa_family
+    // Test reading via mutable pointer and verify size
+    let (family, size) = try sockAddr.withMutableSockAddr { sa, size in
+      (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_INET))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in>.size))
 
     // Test mutation
-    try sockAddr.withMutableSockAddr { sa in
+    try sockAddr.withMutableSockAddr { sa, _ in
       sa.pointee.sa_family = sa_family_t(AF_INET)
     }
     XCTAssertEqual(sockAddr.sin_family, sa_family_t(AF_INET))
@@ -512,19 +513,21 @@ final class SocketAddressTests: XCTestCase {
       presentationAddress: "[::1]:8080"
     )
 
-    let family = try sockAddr.withMutableSockAddr { sa in
-      sa.pointee.sa_family
+    let (family, size) = try sockAddr.withMutableSockAddr { sa, size in
+      (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_INET6))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in6>.size))
   }
 
   func testWithMutableSockAddrUnix() throws {
     var sockAddr = try sockaddr_un(family: sa_family_t(AF_LOCAL), presentationAddress: "/tmp/test")
 
-    let family = try sockAddr.withMutableSockAddr { sa in
-      sa.pointee.sa_family
+    let (family, size) = try sockAddr.withMutableSockAddr { sa, size in
+      (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_LOCAL))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_un>.size))
   }
 
   func testWithMutableSockAddrStorage() throws {
@@ -533,10 +536,11 @@ final class SocketAddressTests: XCTestCase {
       presentationAddress: "10.0.0.1:3000"
     )
 
-    let family = try storage.withMutableSockAddr { sa in
-      sa.pointee.sa_family
+    let (family, size) = try storage.withMutableSockAddr { sa, size in
+      (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_INET))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
   }
 
   func testWithMutableSockAddrAnySocketAddress() throws {
@@ -545,10 +549,11 @@ final class SocketAddressTests: XCTestCase {
       presentationAddress: "127.0.0.1:5000"
     )
 
-    let family = try anyAddr.withMutableSockAddr { sa in
-      sa.pointee.sa_family
+    let (family, size) = try anyAddr.withMutableSockAddr { sa, size in
+      (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_INET))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
   }
 
   #if os(Linux)
@@ -558,19 +563,344 @@ final class SocketAddressTests: XCTestCase {
       presentationAddress: "aa:bb:cc:dd:ee:ff"
     )
 
-    let family = try sockAddr.withMutableSockAddr { sa in
-      sa.pointee.sa_family
+    let (family, size) = try sockAddr.withMutableSockAddr { sa, size in
+      (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_PACKET))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_ll>.size))
   }
 
   func testWithMutableSockAddrNetlink() throws {
     var sockAddr = try sockaddr_nl(family: sa_family_t(AF_NETLINK), presentationAddress: "1234")
 
-    let family = try sockAddr.withMutableSockAddr { sa in
-      sa.pointee.sa_family
+    let (family, size) = try sockAddr.withMutableSockAddr { sa, size in
+      (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_NETLINK))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_nl>.size))
+  }
+  #endif
+
+  // MARK: - withSockAddr Size Parameter Tests
+
+  func testWithSockAddrIPv4Size() throws {
+    let sockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "192.168.1.1:8080"
+    )
+
+    sockAddr.withSockAddr { sa, size in
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in>.size))
+      XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_INET))
+      XCTAssertEqual(Int(size), MemoryLayout<sockaddr_in>.size)
+    }
+  }
+
+  func testWithSockAddrIPv6Size() throws {
+    let sockAddr = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[::1]:9000"
+    )
+
+    sockAddr.withSockAddr { sa, size in
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in6>.size))
+      XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_INET6))
+      XCTAssertEqual(Int(size), MemoryLayout<sockaddr_in6>.size)
+    }
+  }
+
+  func testWithSockAddrUnixSize() throws {
+    let sockAddr = try sockaddr_un(
+      family: sa_family_t(AF_LOCAL),
+      presentationAddress: "/var/run/test.sock"
+    )
+
+    sockAddr.withSockAddr { sa, size in
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_un>.size))
+      XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_LOCAL))
+      XCTAssertEqual(Int(size), MemoryLayout<sockaddr_un>.size)
+    }
+  }
+
+  func testWithSockAddrStorageSize() throws {
+    let storage = try sockaddr_storage(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "10.0.0.1:5000"
+    )
+
+    storage.withSockAddr { sa, size in
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
+      XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_INET))
+    }
+  }
+
+  func testWithSockAddrAnySocketAddressSize() throws {
+    let anyAddr = try AnySocketAddress(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[2001:db8::1]:443"
+    )
+
+    anyAddr.withSockAddr { sa, size in
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
+      XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_INET6))
+    }
+  }
+
+  #if os(Linux)
+  func testWithSockAddrPacketSize() throws {
+    let sockAddr = try sockaddr_ll(
+      family: sa_family_t(AF_PACKET),
+      presentationAddress: "01:23:45:67:89:ab"
+    )
+
+    sockAddr.withSockAddr { sa, size in
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_ll>.size))
+      XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_PACKET))
+      XCTAssertEqual(Int(size), MemoryLayout<sockaddr_ll>.size)
+    }
+  }
+
+  func testWithSockAddrNetlinkSize() throws {
+    let sockAddr = try sockaddr_nl(
+      family: sa_family_t(AF_NETLINK),
+      pid: 5678,
+      groups: 1
+    )
+
+    sockAddr.withSockAddr { sa, size in
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_nl>.size))
+      XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_NETLINK))
+      XCTAssertEqual(Int(size), MemoryLayout<sockaddr_nl>.size)
+    }
+  }
+  #endif
+
+  // MARK: - Integration Tests with Size Parameter
+
+  func testAsStorageUsesCorrectSizeWithNewAPI() throws {
+    let sin = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "203.0.113.1:22"
+    )
+    let storage = sin.asStorage()
+
+    storage.withSockAddr { sa, size in
+      XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_INET))
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
+    }
+  }
+
+  func testWithSockAddrCanCompareAddresses() throws {
+    let sin1 = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "1.2.3.4:80"
+    )
+    let sin2 = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "1.2.3.4:80"
+    )
+
+    let match = sin1.withSockAddr { sa1, len1 in
+      sin2.withSockAddr { sa2, len2 in
+        len1 == len2 && memcmp(sa1, sa2, Int(len1)) == 0
+      }
+    }
+
+    XCTAssertTrue(match)
+  }
+
+  func testWithSockAddrDetectsDifferentAddresses() throws {
+    let sin1 = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "1.2.3.4:80"
+    )
+    let sin2 = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "1.2.3.5:80"
+    )
+
+    let match = sin1.withSockAddr { sa1, len1 in
+      sin2.withSockAddr { sa2, len2 in
+        len1 == len2 && memcmp(sa1, sa2, Int(len1)) == 0
+      }
+    }
+
+    XCTAssertFalse(match)
+  }
+
+  func testWithSockAddrSizeMatchesSizeProperty() throws {
+    let sockAddr = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "8.8.8.8:53"
+    )
+
+    let sizeFromWithSockAddr = sockAddr.withSockAddr { _, size in size }
+    XCTAssertEqual(sizeFromWithSockAddr, sockAddr.size)
+  }
+
+  func testWithMutableSockAddrSizeMatchesSizeProperty() throws {
+    var sockAddr = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[::1]:443"
+    )
+
+    let sizeFromWithMutableSockAddr = try sockAddr.withMutableSockAddr { _, size in size }
+    XCTAssertEqual(sizeFromWithMutableSockAddr, sockAddr.size)
+  }
+
+  // MARK: - sockaddr Cast Tests (verifying correct size after cast)
+
+  func testSockAddrCastFromIPv4HasCorrectSize() throws {
+    var sin = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "192.168.1.1:8080"
+    )
+
+    // Cast sockaddr_in to sockaddr
+    let genericSockAddr: sockaddr = sin.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withSockAddr on the generic sockaddr returns sockaddr_in size
+    let size = genericSockAddr.withSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in>.size))
+    // Note: On Linux, sockaddr and sockaddr_in happen to be the same size (16 bytes)
+  }
+
+  func testMutableSockAddrCastFromIPv4HasCorrectSize() throws {
+    var sin = try sockaddr_in(
+      family: sa_family_t(AF_INET),
+      presentationAddress: "10.0.0.1:3000"
+    )
+
+    // Cast sockaddr_in to sockaddr
+    var genericSockAddr: sockaddr = sin.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withMutableSockAddr on the generic sockaddr returns sockaddr_in size
+    let size = try genericSockAddr.withMutableSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in>.size))
+    // Note: On Linux, sockaddr and sockaddr_in happen to be the same size (16 bytes)
+  }
+
+  func testSockAddrCastFromIPv6HasCorrectSize() throws {
+    var sin6 = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[::1]:9000"
+    )
+
+    // Cast sockaddr_in6 to sockaddr
+    let genericSockAddr: sockaddr = sin6.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withSockAddr on the generic sockaddr returns sockaddr_in6 size
+    let size = genericSockAddr.withSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in6>.size))
+    XCTAssertNotEqual(size, socklen_t(MemoryLayout<sockaddr>.size))
+  }
+
+  func testMutableSockAddrCastFromIPv6HasCorrectSize() throws {
+    var sin6 = try sockaddr_in6(
+      family: sa_family_t(AF_INET6),
+      presentationAddress: "[2001:db8::1]:443"
+    )
+
+    // Cast sockaddr_in6 to sockaddr
+    var genericSockAddr: sockaddr = sin6.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withMutableSockAddr on the generic sockaddr returns sockaddr_in6 size
+    let size = try genericSockAddr.withMutableSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in6>.size))
+    XCTAssertNotEqual(size, socklen_t(MemoryLayout<sockaddr>.size))
+  }
+
+  func testSockAddrCastFromUnixHasCorrectSize() throws {
+    var sun = try sockaddr_un(
+      family: sa_family_t(AF_LOCAL),
+      presentationAddress: "/tmp/test.sock"
+    )
+
+    // Cast sockaddr_un to sockaddr
+    let genericSockAddr: sockaddr = sun.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withSockAddr on the generic sockaddr returns sockaddr_un size
+    let size = genericSockAddr.withSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_un>.size))
+    XCTAssertNotEqual(size, socklen_t(MemoryLayout<sockaddr>.size))
+  }
+
+  func testMutableSockAddrCastFromUnixHasCorrectSize() throws {
+    var sun = try sockaddr_un(
+      family: sa_family_t(AF_LOCAL),
+      presentationAddress: "/var/run/daemon.sock"
+    )
+
+    // Cast sockaddr_un to sockaddr
+    var genericSockAddr: sockaddr = sun.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withMutableSockAddr on the generic sockaddr returns sockaddr_un size
+    let size = try genericSockAddr.withMutableSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_un>.size))
+    XCTAssertNotEqual(size, socklen_t(MemoryLayout<sockaddr>.size))
+  }
+
+  #if os(Linux)
+  func testSockAddrCastFromPacketHasCorrectSize() throws {
+    var sll = try sockaddr_ll(
+      family: sa_family_t(AF_PACKET),
+      presentationAddress: "aa:bb:cc:dd:ee:ff"
+    )
+
+    // Cast sockaddr_ll to sockaddr
+    let genericSockAddr: sockaddr = sll.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withSockAddr on the generic sockaddr returns sockaddr_ll size
+    let size = genericSockAddr.withSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_ll>.size))
+    XCTAssertNotEqual(size, socklen_t(MemoryLayout<sockaddr>.size))
+  }
+
+  func testMutableSockAddrCastFromPacketHasCorrectSize() throws {
+    var sll = try sockaddr_ll(
+      family: sa_family_t(AF_PACKET),
+      presentationAddress: "11:22:33:44:55:66"
+    )
+
+    // Cast sockaddr_ll to sockaddr
+    var genericSockAddr: sockaddr = sll.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withMutableSockAddr on the generic sockaddr returns sockaddr_ll size
+    let size = try genericSockAddr.withMutableSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_ll>.size))
+    XCTAssertNotEqual(size, socklen_t(MemoryLayout<sockaddr>.size))
+  }
+
+  func testSockAddrCastFromNetlinkHasCorrectSize() throws {
+    var snl = try sockaddr_nl(
+      family: sa_family_t(AF_NETLINK),
+      pid: 1234,
+      groups: 0
+    )
+
+    // Cast sockaddr_nl to sockaddr
+    let genericSockAddr: sockaddr = snl.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withSockAddr on the generic sockaddr returns sockaddr_nl size
+    let size = genericSockAddr.withSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_nl>.size))
+    XCTAssertNotEqual(size, socklen_t(MemoryLayout<sockaddr>.size))
+  }
+
+  func testMutableSockAddrCastFromNetlinkHasCorrectSize() throws {
+    var snl = try sockaddr_nl(
+      family: sa_family_t(AF_NETLINK),
+      pid: 5678,
+      groups: 1
+    )
+
+    // Cast sockaddr_nl to sockaddr
+    var genericSockAddr: sockaddr = snl.withSockAddr { sa, _ in sa.pointee }
+
+    // Verify that withMutableSockAddr on the generic sockaddr returns sockaddr_nl size
+    let size = try genericSockAddr.withMutableSockAddr { _, size in size }
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_nl>.size))
+    XCTAssertNotEqual(size, socklen_t(MemoryLayout<sockaddr>.size))
   }
   #endif
 }
