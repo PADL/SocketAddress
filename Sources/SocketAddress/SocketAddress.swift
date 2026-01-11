@@ -55,9 +55,21 @@ public protocol SocketAddress: Sendable {
   static var family: sa_family_t { get }
 
   init(family: sa_family_t, presentationAddress: String) throws
+  #if compiler(>=6.0)
+  mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (UnsafeMutablePointer<sockaddr>, socklen_t) throws(E) -> T
+  ) throws(E) -> T
+  #else
   mutating func withMutableSockAddr<T>(_ body: (UnsafeMutablePointer<sockaddr>, socklen_t) throws
     -> T) rethrows -> T
+  #endif
+  #if compiler(>=6.0)
+  func withSockAddr<R, E: Error>(
+    _ body: (UnsafePointer<sockaddr>, socklen_t) throws(E) -> R
+  ) throws(E) -> R
+  #else
   func withSockAddr<R>(_ body: (UnsafePointer<sockaddr>, socklen_t) throws -> R) rethrows -> R
+  #endif
   var presentationAddress: String { get throws }
   var presentationAddressNoPort: String { get throws }
 
@@ -131,6 +143,16 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  #if compiler(>=6.0)
+  public func withSockAddr<R, E: Error>(
+    _ body: (UnsafePointer<sockaddr>, socklen_t) throws(E) -> R
+  ) throws(E) -> R {
+    let size = size
+    return try withUnsafeBytes(of: self) { p throws(E) -> R in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
+    }
+  }
+  #else
   public func withSockAddr<R>(_ body: (UnsafePointer<sockaddr>, socklen_t) throws -> R) rethrows
     -> R
   {
@@ -138,7 +160,18 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
+  #endif
 
+  #if compiler(>=6.0)
+  public mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    let len = size
+    return try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), len)
+    }
+  }
+  #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
@@ -147,6 +180,7 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), len)
     }
   }
+  #endif
 }
 
 extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
@@ -206,6 +240,15 @@ extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  #if compiler(>=6.0)
+  public func withSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeBytes(of: self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
@@ -213,7 +256,17 @@ extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 
+  #if compiler(>=6.0)
+  public mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
@@ -221,6 +274,7 @@ extension sockaddr_in: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 }
 
 extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
@@ -280,6 +334,15 @@ extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  #if compiler(>=6.0)
+  public func withSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeBytes(of: self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
@@ -287,7 +350,17 @@ extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 
+  #if compiler(>=6.0)
+  public mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
@@ -295,6 +368,7 @@ extension sockaddr_in6: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 }
 
 extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
@@ -364,6 +438,15 @@ extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  #if compiler(>=6.0)
+  public func withSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeBytes(of: self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
@@ -371,7 +454,17 @@ extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 
+  #if compiler(>=6.0)
+  public mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
@@ -379,6 +472,7 @@ extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 }
 
 #if os(Linux)
@@ -442,6 +536,15 @@ extension sockaddr_ll: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  #if compiler(>=6.0)
+  public func withSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeBytes(of: self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
@@ -449,7 +552,17 @@ extension sockaddr_ll: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 
+  #if compiler(>=6.0)
+  public mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
@@ -457,6 +570,7 @@ extension sockaddr_ll: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 }
 
 extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
@@ -500,6 +614,15 @@ extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  #if compiler(>=6.0)
+  public func withSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeBytes(of: self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
@@ -507,7 +630,17 @@ extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 
+  #if compiler(>=6.0)
+  public mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
@@ -515,6 +648,7 @@ extension sockaddr_nl: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 }
 #endif
 
@@ -656,6 +790,15 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
     }
   }
 
+  #if compiler(>=6.0)
+  public func withSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeBytes(of: self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
@@ -663,7 +806,17 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 
+  #if compiler(>=6.0)
+  public mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    }
+  }
+  #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
@@ -671,6 +824,7 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
       try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
     }
   }
+  #endif
 }
 
 public extension sockaddr_storage {
@@ -738,17 +892,33 @@ extension AnySocketAddress: SocketAddress {
     storage = try sockaddr_storage(family: family, presentationAddress: presentationAddress)
   }
 
+  #if compiler(>=6.0)
+  public func withSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try storage.withSockAddr(body)
+  }
+  #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
     try storage.withSockAddr(body)
   }
+  #endif
 
+  #if compiler(>=6.0)
+  public mutating func withMutableSockAddr<T, E: Error>(
+    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
+  ) throws(E) -> T {
+    try storage.withMutableSockAddr(body)
+  }
+  #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
     try storage.withMutableSockAddr(body)
   }
+  #endif
 
   public var presentationAddress: String {
     get throws {
