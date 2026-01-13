@@ -904,13 +904,23 @@ extension AnySocketAddress: SocketAddress {
   public func withSockAddr<T, E: Error>(
     _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
   ) throws(E) -> T {
-    try storage.withSockAddr(body)
+    let family = storage.ss_family
+    var storage = storage
+    return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
+      let size: socklen_t = try! getSizesForFamily(family).1
+      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
+    }
   }
   #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
-    try storage.withSockAddr(body)
+    let family = storage.ss_family
+    var storage = storage
+    return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
+      let size: socklen_t = try! getSizesForFamily(family).1
+      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
+    }
   }
   #endif
 
@@ -918,13 +928,21 @@ extension AnySocketAddress: SocketAddress {
   public mutating func withMutableSockAddr<T, E: Error>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
   ) throws(E) -> T {
-    try storage.withMutableSockAddr(body)
+    let family = storage.ss_family
+    return try withUnsafeMutableBytes(of: &storage) { p throws(E) -> T in
+      let size: socklen_t = try! getSizesForFamily(family).1
+      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
+    }
   }
   #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
-    try storage.withMutableSockAddr(body)
+    let family = storage.ss_family
+    return try withUnsafeMutableBytes(of: &storage) { p throws(E) -> T in
+      let size: socklen_t = try! getSizesForFamily(family).1
+      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
+    }
   }
   #endif
 
@@ -947,7 +965,7 @@ extension AnySocketAddress: SocketAddress {
   }
 
   public var size: socklen_t {
-    storage.size
+    try! getSizesForFamily(family).1
   }
 }
 
