@@ -128,22 +128,7 @@ extension sockaddr: SocketAddress, @retroactive @unchecked Sendable {
   }
 
   public var size: socklen_t {
-    switch Int32(sa_family) {
-    case AF_INET:
-      return socklen_t(MemoryLayout<sockaddr_in>.size)
-    case AF_INET6:
-      return socklen_t(MemoryLayout<sockaddr_in6>.size)
-    case AF_LOCAL:
-      return socklen_t(MemoryLayout<sockaddr_un>.size)
-    #if os(Linux)
-    case AF_PACKET:
-      return socklen_t(MemoryLayout<sockaddr_ll>.size)
-    case AF_NETLINK:
-      return socklen_t(MemoryLayout<sockaddr_nl>.size)
-    #endif
-    default:
-      return 0
-    }
+    (try? getSizesForFamily(sa_family))?.1 ?? 0
   }
 
   private var _storage: sockaddr_storage {
@@ -911,7 +896,7 @@ extension AnySocketAddress: SocketAddress {
     let family = storage.ss_family
     var storage = storage
     return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
-      let size: socklen_t = try! getSizesForFamily(family).1
+      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
       return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
@@ -922,7 +907,7 @@ extension AnySocketAddress: SocketAddress {
     let family = storage.ss_family
     var storage = storage
     return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
-      let size: socklen_t = try! getSizesForFamily(family).1
+      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
       return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
@@ -934,7 +919,7 @@ extension AnySocketAddress: SocketAddress {
   ) throws(E) -> T {
     let family = storage.ss_family
     return try withUnsafeMutableBytes(of: &storage) { p throws(E) -> T in
-      let size: socklen_t = try! getSizesForFamily(family).1
+      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
       return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
@@ -944,7 +929,7 @@ extension AnySocketAddress: SocketAddress {
   ) rethrows -> T {
     let family = storage.ss_family
     return try withUnsafeMutableBytes(of: &storage) { p throws(E) -> T in
-      let size: socklen_t = try! getSizesForFamily(family).1
+      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
       return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
@@ -969,7 +954,7 @@ extension AnySocketAddress: SocketAddress {
   }
 
   public var size: socklen_t {
-    try! getSizesForFamily(family).1
+    (try? getSizesForFamily(storage.ss_family))?.1 ?? 0
   }
 }
 
