@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023-2025 PADL Software Pty Ltd
+// Copyright (c) 2023-2026 PADL Software Pty Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the License);
 // you may not use this file except in compliance with the License.
@@ -49,6 +49,31 @@ public func parseIPv6PresentationAddress(_ presentationAddress: String) throws
 
   // Assume bare IPv6 address (let inet_pton() validate it)
   return (presentationAddress, nil)
+}
+
+private func getSizesForFamily(_ family: sa_family_t) throws -> (Int, Int) {
+  switch Int32(family) {
+  case AF_INET:
+    (MemoryLayout<sockaddr_in>.size, MemoryLayout<sockaddr_in>.size)
+  case AF_INET6:
+    (MemoryLayout<sockaddr_in6>.size, MemoryLayout<sockaddr_in6>.size)
+  case AF_LOCAL:
+    // For domain sockets, minimum size is offset of sun_path + space for zero-length path
+    (MemoryLayout<sockaddr_un>.offset(of: \.sun_path)! + 1, MemoryLayout<sockaddr_un>.size)
+  #if os(Linux)
+  case AF_PACKET:
+    (MemoryLayout<sockaddr_ll>.size, MemoryLayout<sockaddr_ll>.size)
+  case AF_NETLINK:
+    (MemoryLayout<sockaddr_nl>.size, MemoryLayout<sockaddr_nl>.size)
+  #endif
+  default:
+    throw Errno.addressFamilyNotSupported
+  }
+}
+
+private func getSizesForFamily(_ family: sa_family_t) throws -> (socklen_t, socklen_t) {
+  let sizes: (Int, Int) = try getSizesForFamily(family)
+  return (socklen_t(sizes.0), socklen_t(sizes.1))
 }
 
 public protocol SocketAddress: Sendable {
@@ -795,7 +820,7 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
     _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
   ) throws(E) -> T {
     try withUnsafeBytes(of: self) { p throws(E) -> T in
-      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(size))
     }
   }
   #else
@@ -835,26 +860,9 @@ public extension sockaddr_storage {
 
     let family = bytes.withUnsafeBytes { $0.loadUnaligned(as: sockaddr.self).sa_family }
     var ss = Self()
-    let minimumSize: Int
+    let (minimumSize, maximumSize): (Int, Int) = try getSizesForFamily(family)
 
-    switch Int32(family) {
-    case AF_INET:
-      minimumSize = MemoryLayout<sockaddr_in>.size
-    case AF_INET6:
-      minimumSize = MemoryLayout<sockaddr_in6>.size
-    case AF_LOCAL:
-      // For domain sockets, minimum size is offset of sun_path + space for zero-length path
-      minimumSize = MemoryLayout<sockaddr_un>.offset(of: \.sun_path)! + 1
-    #if os(Linux)
-    case AF_PACKET:
-      minimumSize = MemoryLayout<sockaddr_ll>.size
-    case AF_NETLINK:
-      minimumSize = MemoryLayout<sockaddr_nl>.size
-    #endif
-    default:
-      throw Errno.addressFamilyNotSupported
-    }
-    guard bytes.count >= minimumSize, bytes.count <= MemoryLayout<Self>.size else {
+    guard bytes.count >= minimumSize, bytes.count <= maximumSize else {
       throw Errno.outOfRange
     }
     memcpy(&ss, bytes, bytes.count)
