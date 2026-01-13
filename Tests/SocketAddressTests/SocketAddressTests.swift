@@ -254,9 +254,9 @@ final class SocketAddressTests: XCTestCase {
 
     let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
     let storage = try sockaddr_storage(bytes: bytes)
-    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0) }
-
     let expectedSize = MemoryLayout<sockaddr_in>.size
+    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0.prefix(expectedSize)) }
+
     XCTAssertEqual(bytes.prefix(expectedSize), roundTripBytes.prefix(expectedSize))
 
     let finalStorage = try sockaddr_storage(bytes: roundTripBytes)
@@ -272,9 +272,9 @@ final class SocketAddressTests: XCTestCase {
 
     let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
     let storage = try sockaddr_storage(bytes: bytes)
-    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0) }
-
     let expectedSize = MemoryLayout<sockaddr_in6>.size
+    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0.prefix(expectedSize)) }
+
     XCTAssertEqual(bytes.prefix(expectedSize), roundTripBytes.prefix(expectedSize))
 
     let finalStorage = try sockaddr_storage(bytes: roundTripBytes)
@@ -290,9 +290,9 @@ final class SocketAddressTests: XCTestCase {
 
     let bytes: [UInt8] = withUnsafeBytes(of: originalSockAddr) { Array($0) }
     let storage = try sockaddr_storage(bytes: bytes)
-    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0) }
-
     let expectedSize = MemoryLayout<sockaddr_un>.size
+    let roundTripBytes: [UInt8] = withUnsafeBytes(of: storage) { Array($0.prefix(expectedSize)) }
+
     XCTAssertEqual(bytes.prefix(expectedSize), roundTripBytes.prefix(expectedSize))
 
     let finalStorage = try sockaddr_storage(bytes: roundTripBytes)
@@ -553,7 +553,7 @@ final class SocketAddressTests: XCTestCase {
       (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_INET))
-    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in>.size))
   }
 
   #if os(Linux)
@@ -641,7 +641,7 @@ final class SocketAddressTests: XCTestCase {
     )
 
     anyAddr.withSockAddr { sa, size in
-      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in6>.size))
       XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_INET6))
     }
   }
