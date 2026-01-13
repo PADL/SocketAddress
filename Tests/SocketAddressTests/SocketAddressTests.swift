@@ -540,7 +540,7 @@ final class SocketAddressTests: XCTestCase {
       (sa.pointee.sa_family, size)
     }
     XCTAssertEqual(family, sa_family_t(AF_INET))
-    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
+    XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in>.size))
   }
 
   func testWithMutableSockAddrAnySocketAddress() throws {
@@ -629,7 +629,7 @@ final class SocketAddressTests: XCTestCase {
     )
 
     storage.withSockAddr { sa, size in
-      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in>.size))
       XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_INET))
     }
   }
@@ -686,7 +686,7 @@ final class SocketAddressTests: XCTestCase {
 
     storage.withSockAddr { sa, size in
       XCTAssertEqual(sa.pointee.sa_family, sa_family_t(AF_INET))
-      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_storage>.size))
+      XCTAssertEqual(size, socklen_t(MemoryLayout<sockaddr_in>.size))
     }
   }
 

@@ -698,7 +698,7 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
   }
 
   public var size: socklen_t {
-    socklen_t(MemoryLayout<Self>.size)
+    (try? getSizesForFamily(ss_family))?.1 ?? 0
   }
 
   public var presentationAddress: String {
@@ -808,16 +808,22 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
   public func withSockAddr<T, E: Error>(
     _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
   ) throws(E) -> T {
-    try withUnsafeBytes(of: self) { p throws(E) -> T in
-      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(size))
+    let family = ss_family
+    var storage = self
+    return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
+      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
+      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
   #else
   public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
     -> T) rethrows -> T
   {
-    try withUnsafeBytes(of: self) { p in
-      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    let family = ss_family
+    var storage = self
+    return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
+      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
+      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
   #endif
@@ -826,16 +832,20 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
   public mutating func withMutableSockAddr<T, E: Error>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
   ) throws(E) -> T {
-    try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
-      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    let family = ss_family
+    return try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
+      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
   #else
   public mutating func withMutableSockAddr<T>(
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
-    try withUnsafeMutableBytes(of: &self) { p in
-      try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), socklen_t(p.count))
+    let family = ss_family
+    return try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
+      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
   }
   #endif
@@ -860,107 +870,94 @@ public extension sockaddr_storage {
 }
 
 public struct AnySocketAddress: Sendable {
-  private var storage: sockaddr_storage
+  private var _sa: any SocketAddress
 
   public init(_ sa: any SocketAddress) {
-    storage = sa.asStorage()
+    _sa = sa
   }
 
   public init(bytes: [UInt8]) throws {
-    storage = try sockaddr_storage(bytes: bytes)
-  }
-}
-
-extension AnySocketAddress: Equatable {
-  public static func == (lhs: AnySocketAddress, rhs: AnySocketAddress) -> Bool {
-    var lhs = lhs
-    var rhs = rhs
-    return lhs.storage.size == rhs.storage.size &&
-      memcmp(&lhs.storage, &rhs.storage, Int(lhs.storage.size)) == 0
+    _sa = try sockaddr_storage(bytes: bytes)
   }
 }
 
 extension AnySocketAddress: SocketAddress {
-  public static var family: sa_family_t {
-    sa_family_t(AF_UNSPEC)
-  }
+  public static var family: sa_family_t { sa_family_t(AF_UNSPEC) }
 
   public init(family: sa_family_t, presentationAddress: String) throws {
-    storage = try sockaddr_storage(family: family, presentationAddress: presentationAddress)
-  }
-
-  #if compiler(>=6.0)
-  public func withSockAddr<T, E: Error>(
-    _ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
-  ) throws(E) -> T {
-    let family = storage.ss_family
-    var storage = storage
-    return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
-      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
-      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
+    switch Int32(family) {
+    case AF_INET:
+      _sa = try sockaddr_in(family: family, presentationAddress: presentationAddress)
+    case AF_INET6:
+      _sa = try sockaddr_in6(family: family, presentationAddress: presentationAddress)
+    case AF_LOCAL:
+      _sa = try sockaddr_un(family: family, presentationAddress: presentationAddress)
+    #if os(Linux)
+    case AF_PACKET:
+      _sa = try sockaddr_ll(family: family, presentationAddress: presentationAddress)
+    case AF_NETLINK:
+      _sa = try sockaddr_nl(family: family, presentationAddress: presentationAddress)
+    #endif
+    default:
+      throw Errno.addressFamilyNotSupported
     }
   }
-  #else
-  public func withSockAddr<T>(_ body: (_ sa: UnsafePointer<sockaddr>, _ size: socklen_t) throws
-    -> T) rethrows -> T
-  {
-    let family = storage.ss_family
-    var storage = storage
-    return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
-      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
-      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
-    }
-  }
-  #endif
 
   #if compiler(>=6.0)
   public mutating func withMutableSockAddr<T, E: Error>(
-    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws(E) -> T
-  ) throws(E) -> T {
-    let family = storage.ss_family
-    return try withUnsafeMutableBytes(of: &storage) { p throws(E) -> T in
-      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
-      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
-    }
-  }
+    _ body: (UnsafeMutablePointer<sockaddr>, socklen_t) throws(E) -> T
+  ) throws(E) -> T { try _sa.withMutableSockAddr(body) }
   #else
-  public mutating func withMutableSockAddr<T>(
-    _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
-  ) rethrows -> T {
-    let family = storage.ss_family
-    return try withUnsafeMutableBytes(of: &storage) { p throws(E) -> T in
-      let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
-      return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
-    }
-  }
+  public mutating func withMutableSockAddr<T>(_ body: (
+    UnsafeMutablePointer<sockaddr>,
+    socklen_t
+  ) throws
+    -> T) rethrows -> T { try _sa.withMutableSockAddr(body) }
+  #endif
+  #if compiler(>=6.0)
+  public func withSockAddr<R, E: Error>(
+    _ body: (UnsafePointer<sockaddr>, socklen_t) throws(E) -> R
+  ) throws(E) -> R { try _sa.withSockAddr(body) }
+  #else
+  func withSockAddr(_ body: (UnsafePointer<sockaddr>, socklen_t) throws -> some Any) rethrows
+  public -> R { try _sa.withSockAddr(body) }
   #endif
 
   public var presentationAddress: String {
     get throws {
-      try storage.presentationAddress
+      try _sa.presentationAddress
     }
   }
 
   public var presentationAddressNoPort: String {
     get throws {
-      try storage.presentationAddressNoPort
+      try _sa.presentationAddressNoPort
     }
   }
 
   public var port: UInt16 {
     get throws {
-      try storage.port
+      try _sa.port
     }
   }
 
   public var size: socklen_t {
-    (try? getSizesForFamily(storage.ss_family))?.1 ?? 0
+    _sa.size
+  }
+}
+
+extension AnySocketAddress: Equatable {
+  public static func == (lhs: AnySocketAddress, rhs: AnySocketAddress) -> Bool {
+    var lhs = lhs.asStorage()
+    var rhs = rhs.asStorage()
+    return lhs.size == rhs.size &&
+      memcmp(&lhs, &rhs, Int(lhs.size)) == 0
   }
 }
 
 extension AnySocketAddress: Hashable {
   public func hash(into hasher: inout Hasher) {
-    withUnsafeBytes(of: storage) {
+    withUnsafeBytes(of: asStorage()) {
       hasher.combine(bytes: $0)
     }
   }
