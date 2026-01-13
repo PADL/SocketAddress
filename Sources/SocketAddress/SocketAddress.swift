@@ -434,7 +434,11 @@ extension sockaddr_un: SocketAddress, @retroactive @unchecked Sendable {
   }
 
   public var size: socklen_t {
+    #if os(FreeBSD) || canImport(Darwin)
+    socklen_t(sun_len)
+    #else
     socklen_t(MemoryLayout<Self>.size)
+    #endif
   }
 
   public var presentationAddress: String {
