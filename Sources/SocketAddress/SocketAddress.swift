@@ -43,7 +43,13 @@ public func parseIPv6PresentationAddress(_ presentationAddress: String) throws
   let bracketedRegex: Regex = #/\[([0-9a-fA-F:]+)\](:(\d+))?/#
   if let match = presentationAddress.firstMatch(of: bracketedRegex) {
     let address = String(match.1)
-    let port: UInt16? = match.3.map { UInt16($0) } ?? nil
+    let port: UInt16?
+    if let portStr = match.3 {
+      guard let parsed = UInt16(portStr) else { throw Errno.invalidArgument }
+      port = parsed
+    } else {
+      port = nil
+    }
     return (address, port)
   }
 
