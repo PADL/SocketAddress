@@ -36,7 +36,7 @@ private func parseIPv4PresentationAddress(_ presentationAddress: String) -> (Str
   return (String(addressPort.first!), port)
 }
 
-public func parseIPv6PresentationAddress(_ presentationAddress: String) throws
+private func parseIPv6PresentationAddress(_ presentationAddress: String) throws
   -> (String, UInt16?)
 {
   // Try bracketed format first: [address]:port or [address]
