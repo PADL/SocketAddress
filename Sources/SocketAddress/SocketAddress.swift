@@ -33,7 +33,8 @@ private func parseIPv4PresentationAddress(_ presentationAddress: String) -> (Str
     port = UInt16(addressPort[1])
   }
 
-  return (String(addressPort.first!), port)
+  guard let address = addressPort.first else { return (presentationAddress, nil) }
+  return (String(address), port)
 }
 
 private func parseIPv6PresentationAddress(_ presentationAddress: String) throws
