@@ -28,7 +28,7 @@ extension Errno {
   static func throwingErrno(_ body: @escaping () -> RawValue) throws -> RawValue {
     let result = body()
     if result < 0 {
-      throw Errno(rawValue: -result)
+      throw Errno(rawValue: errno)
     }
     return result
   }

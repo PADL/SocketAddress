@@ -33,17 +33,24 @@ private func parseIPv4PresentationAddress(_ presentationAddress: String) -> (Str
     port = UInt16(addressPort[1])
   }
 
-  return (String(addressPort.first!), port)
+  guard let address = addressPort.first else { return (presentationAddress, nil) }
+  return (String(address), port)
 }
 
-public func parseIPv6PresentationAddress(_ presentationAddress: String) throws
+private func parseIPv6PresentationAddress(_ presentationAddress: String) throws
   -> (String, UInt16?)
 {
   // Try bracketed format first: [address]:port or [address]
   let bracketedRegex: Regex = #/\[([0-9a-fA-F:]+)\](:(\d+))?/#
   if let match = presentationAddress.firstMatch(of: bracketedRegex) {
     let address = String(match.1)
-    let port: UInt16? = match.3.map { UInt16($0) } ?? nil
+    let port: UInt16?
+    if let portStr = match.3 {
+      guard let parsed = UInt16(portStr) else { throw Errno.invalidArgument }
+      port = parsed
+    } else {
+      port = nil
+    }
     return (address, port)
   }
 
@@ -111,8 +118,8 @@ public extension SocketAddress {
 public extension SocketAddress {
   func asStorage() -> sockaddr_storage {
     var ss = sockaddr_storage()
-    withSockAddr { sa, len in
-      _ = memcpy(&ss, sa, Int(len))
+    withSockAddr { sa, _ in
+      _ = memcpy(&ss, sa, Int(size))
     }
     return ss
   }
@@ -531,7 +538,8 @@ extension sockaddr_ll: SocketAddress, @retroactive @unchecked Sendable {
         let start = addr.propertyBasePointer(to: \.0)!
         let capacity = MemoryLayout.size(ofValue: addr.pointee)
         return start.withMemoryRebound(to: UInt8.self, capacity: capacity) { dst in
-          UnsafeBufferPointer(start: dst, count: Int(ETH_ALEN)).map { String($0, radix: 16) }
+          UnsafeBufferPointer(start: dst, count: Int(ETH_ALEN))
+            .map { let s = String($0, radix: 16); return $0 < 16 ? "0" + s : s }
             .joined(separator: ":")
         }
       }
@@ -821,7 +829,7 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
   {
     let family = ss_family
     var storage = self
-    return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
+    return try withUnsafeBytes(of: &storage) { p in
       let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
       return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
@@ -843,7 +851,7 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
     let family = ss_family
-    return try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+    return try withUnsafeMutableBytes(of: &self) { p in
       let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
       return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
@@ -919,8 +927,8 @@ extension AnySocketAddress: SocketAddress {
     _ body: (UnsafePointer<sockaddr>, socklen_t) throws(E) -> R
   ) throws(E) -> R { try _sa.withSockAddr(body) }
   #else
-  func withSockAddr(_ body: (UnsafePointer<sockaddr>, socklen_t) throws -> some Any) rethrows
-  public -> R { try _sa.withSockAddr(body) }
+  public func withSockAddr<R>(_ body: (UnsafePointer<sockaddr>, socklen_t) throws -> R) rethrows
+    -> R { try _sa.withSockAddr(body) }
   #endif
 
   public var presentationAddress: String {
