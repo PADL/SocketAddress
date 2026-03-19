@@ -117,8 +117,8 @@ public extension SocketAddress {
 public extension SocketAddress {
   func asStorage() -> sockaddr_storage {
     var ss = sockaddr_storage()
-    withSockAddr { sa, len in
-      _ = memcpy(&ss, sa, Int(len))
+    withSockAddr { sa, _ in
+      _ = memcpy(&ss, sa, Int(size))
     }
     return ss
   }
