@@ -919,8 +919,8 @@ extension AnySocketAddress: SocketAddress {
     _ body: (UnsafePointer<sockaddr>, socklen_t) throws(E) -> R
   ) throws(E) -> R { try _sa.withSockAddr(body) }
   #else
-  func withSockAddr(_ body: (UnsafePointer<sockaddr>, socklen_t) throws -> some Any) rethrows
-  public -> R { try _sa.withSockAddr(body) }
+  public func withSockAddr<R>(_ body: (UnsafePointer<sockaddr>, socklen_t) throws -> R) rethrows
+    -> R { try _sa.withSockAddr(body) }
   #endif
 
   public var presentationAddress: String {
