@@ -821,7 +821,7 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
   {
     let family = ss_family
     var storage = self
-    return try withUnsafeBytes(of: &storage) { p throws(E) -> T in
+    return try withUnsafeBytes(of: &storage) { p in
       let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
       return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
@@ -843,7 +843,7 @@ extension sockaddr_storage: SocketAddress, @retroactive @unchecked Sendable {
     _ body: (_ sa: UnsafeMutablePointer<sockaddr>, _ size: socklen_t) throws -> T
   ) rethrows -> T {
     let family = ss_family
-    return try withUnsafeMutableBytes(of: &self) { p throws(E) -> T in
+    return try withUnsafeMutableBytes(of: &self) { p in
       let size: socklen_t = (try? getSizesForFamily(family))?.1 ?? 0
       return try body(p.baseAddress!.assumingMemoryBound(to: sockaddr.self), size)
     }
