@@ -1,0 +1,12 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Allow consumers to locate the FindSwiftSystem.cmake shim we ship.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+
+find_dependency(SwiftSystem)
+
+include("${CMAKE_CURRENT_LIST_DIR}/SocketAddressTargets.cmake")
+
+check_required_components(SocketAddress)
